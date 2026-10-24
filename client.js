@@ -17,6 +17,7 @@ window.__ModuleLoader__.load({
 .mmb_model{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .mmb_sep{flex:none;opacity:.65}
 .mmb_effort{flex:none;font-weight:600;color:var(--dsw-alias-label-tertiary,#6f7479)}
+.mmb_fallback{opacity:.55}
 `;
 
 		/** Resolve the model and reasoning level currently selected for one Session. */
@@ -57,6 +58,7 @@ window.__ModuleLoader__.load({
 				 * actually used instead of the composer's current selection. */
 				const selectionDefinition = {
 					kind: 'model-badge',
+					target: 'chat',
 					match: (event) => (event.type === 'model/selection' ? { id: String(event.seq), role: 'update' } : null),
 					start: (_context, match) => ({ ...match.event.data }),
 					update: (context) => context.state,
@@ -67,6 +69,7 @@ window.__ModuleLoader__.load({
 						if (turn === undefined) return null;
 						return { kind: 'turn', turn, key: 'model-badge', value: { ...context.state } };
 					},
+					buildViewNode: () => null,
 				};
 				scope.effect(
 					() => scope.uiConversation.events.register(selectionDefinition),
@@ -128,7 +131,7 @@ window.__ModuleLoader__.load({
 							: t('badge.aria', { model: modelName, effort: effortName });
 					return h(
 						'div',
-						{ className: 'mmb_row', title: label, 'aria-label': label, role: 'note' },
+						{ className: actual ? 'mmb_row' : 'mmb_row mmb_fallback', title: label, 'aria-label': label, role: 'note' },
 						h('span', { className: 'mmb_model' }, modelName),
 						effortName === undefined ? null : h('span', { className: 'mmb_sep' }, '·'),
 						effortName === undefined ? null : h('span', { className: 'mmb_effort' }, effortName),
