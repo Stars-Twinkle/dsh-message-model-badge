@@ -35,7 +35,7 @@ window.__ModuleLoader__.load({
 		}
 
 		function apply(ctx) {
-			ctx.inject(['slots', 'locale', 'sessions', 'remote', 'remote.session', 'modelDirectories'], (scope) => {
+			ctx.inject(['slots', 'locale', 'sessions', 'remote', 'remote.session', 'modelDirectories', 'uiConversation'], (scope) => {
 				scope.effect(
 					() =>
 						scope.locale.register(NS, {
@@ -51,6 +51,27 @@ window.__ModuleLoader__.load({
 					'message-model-badge: dictionaries',
 				);
 				const t = scope.locale.bind(NS);
+
+				/* One definition folds the durable model/selection records; buildLocationData
+				 * publishes the last one inside each turn, so the badge shows what that turn
+				 * actually used instead of the composer's current selection. */
+				const selectionDefinition = {
+					kind: 'model-badge',
+					match: (event) => (event.type === 'model/selection' ? { id: String(event.seq), role: 'update' } : null),
+					start: (_context, match) => ({ ...match.event.data }),
+					update: (context) => context.state,
+					buildLocationData: (context, locationScope) => {
+						if (locationScope !== 'turn') return null;
+						const location = context.start?.location ?? context.matches[0]?.location ?? { kind: 'unresolved' };
+						const turn = location.kind === 'turn' || location.kind === 'step' ? location.turn : undefined;
+						if (turn === undefined) return null;
+						return { kind: 'turn', turn, key: 'model-badge', value: { ...context.state } };
+					},
+				};
+				scope.effect(
+					() => scope.uiConversation.events.register(selectionDefinition),
+					'message-model-badge: turn model data',
+				);
 
 				scope.effect(() => {
 					for (const stale of Array.from(document.querySelectorAll(`style[data-plugin="${PKG}"]`))) stale.remove();
@@ -97,7 +118,8 @@ window.__ModuleLoader__.load({
 					const snapshot = useMemo(() => () => store.getSnapshot(), [store]);
 					const state = useSyncExternalStore(subscribe, snapshot, snapshot);
 
-					const described = describe(state);
+					const actual = props.turn?.data?.get?.('model-badge');
+					const described = actual ? describe({ current: actual, groups: state.groups }) : describe(state);
 					if (described === null) return null;
 					const { modelName, effortName } = described;
 					const label =
