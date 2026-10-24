@@ -53,14 +53,22 @@ window.__ModuleLoader__.load({
 				);
 				const t = scope.locale.bind(NS);
 
-				/* One definition folds the durable model/selection records; buildLocationData
-				 * publishes the last one inside each turn, so the badge shows what that turn
-				 * actually used instead of the composer's current selection. */
+				/* Durable request headers record the exact provider/model/reasoningEffort each
+				 * step asked for; publishing the last one inside a turn shows what that turn
+				 * really used, independent of the composer's current selection. */
 				const selectionDefinition = {
 					kind: 'model-badge',
 					target: 'chat',
-					match: (event) => (event.type === 'model/selection' ? { id: String(event.seq), role: 'update' } : null),
-					start: (_context, match) => ({ ...match.event.data }),
+					match: (event) => {
+						if (event.type !== 'request/header') return null;
+						const config = event.data?.header?.config;
+						if (config === null || config === undefined || typeof config.model !== 'string') return null;
+						return { id: String(event.seq), role: 'update' };
+					},
+					start: (_context, match) => {
+						const config = match.event.data.header.config;
+						return { provider: config.provider, model: config.model, reasoningEffort: config.reasoningEffort };
+					},
 					update: (context) => context.state,
 					buildLocationData: (context, locationScope) => {
 						if (locationScope !== 'turn') return null;
