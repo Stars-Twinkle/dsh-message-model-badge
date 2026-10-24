@@ -98,15 +98,9 @@ window.__ModuleLoader__.load({
 					const snapshot = useMemo(() => () => store.getSnapshot(), [store]);
 					const state = useSyncExternalStore(subscribe, snapshot, snapshot);
 
-					/* Host projection face: `{ byTurn: { [turn]: { provider, model, reasoningEffort } } }`. */
-					const face = useMemo(() => {
-						try {
-							const binding = scope.sessions.binding(sessionId);
-							return binding?.session?.projections?.faceOf?.('message-model-badge') ?? null;
-						} catch {
-							return null;
-						}
-					}, [sessionId]);
+					/* Host projection face: `{ byTurn: { [turn]: { provider, model, reasoningEffort } } }`.
+					 * The registration resolves the Session binding and hands the face in as a prop. */
+					const face = props.projectionFace ?? null;
 					const faceSubscribe = useMemo(
 						() => (listener) => (face === null ? () => {} : face.subscribe(listener)),
 						[face],
@@ -135,7 +129,21 @@ window.__ModuleLoader__.load({
 					() =>
 						scope.slots.inject('conversation.chat.turnTail', () =>
 							scope.slots.register(
-								{ name: 'conversation.chat.turnTail', id: 'message-model-badge', order: 15 },
+								{
+									name: 'conversation.chat.turnTail',
+									id: 'message-model-badge',
+									order: 15,
+									inject: (sessionId) => {
+										let projectionFace = null;
+										try {
+											const binding = scope.sessions.binding(sessionId);
+											projectionFace = binding?.session?.projections?.faceOf?.('message-model-badge') ?? null;
+										} catch {
+											projectionFace = null;
+										}
+										return { projectionFace };
+									},
+								},
 								Badge,
 							),
 						),
