@@ -1,5 +1,5 @@
 window.__ModuleLoader__.load({
-	id: '@starstwinkle/dsh-message-model-badge',
+	id: '@stars-twinkle/dsh-message-model-badge',
 	factory(require) {
 		const React = require('react');
 		const { useEffect, useMemo, useState, useSyncExternalStore } = React;
