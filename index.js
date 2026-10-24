@@ -1,2 +1,55 @@
-/** Host half of the message model badge bundle; the Client module owns the rendering. */
-export function apply() {}
+/**
+ * Host half of the message model badge bundle.
+ *
+ * It keeps one session projection that records, for every turn, the exact
+ * `provider / model / reasoningEffort` that turn's requests asked for. The
+ * Client reads it through the projection face, so the badge never depends on
+ * the composer's current selection and never touches Chat node assembly.
+ */
+
+/** Fold durable session events into a per-turn model table. */
+function fold(state, event) {
+	if (event.type === 'turn/start') {
+		const turn = event.data?.turn;
+		if (typeof turn !== 'number') return state;
+		if (state.currentTurn === turn) return state;
+		return { ...state, currentTurn: turn };
+	}
+	if (event.type === 'request/header') {
+		const config = event.data?.header?.config;
+		if (config === null || config === undefined || typeof config.model !== 'string') return state;
+		const turn = state.currentTurn;
+		if (turn === undefined) return state;
+		const next = {
+			provider: config.provider,
+			model: config.model,
+			reasoningEffort: config.reasoningEffort,
+		};
+		const previous = state.byTurn[turn];
+		if (
+			previous !== undefined &&
+			previous.provider === next.provider &&
+			previous.model === next.model &&
+			previous.reasoningEffort === next.reasoningEffort
+		) {
+			return state;
+		}
+		return { ...state, byTurn: { ...state.byTurn, [turn]: next } };
+	}
+	return state;
+}
+
+export const inject = ['sessionProjections'];
+
+export function apply(ctx) {
+	const definition = {
+		key: 'message-model-badge',
+		stateVersion: 1,
+		init: () => ({ currentTurn: undefined, byTurn: {} }),
+		apply: fold,
+		wire: {
+			view: (state) => ({ byTurn: state.byTurn }),
+		},
+	};
+	ctx.effect(() => ctx.sessionProjections.register(definition), 'message-model-badge: projection');
+}

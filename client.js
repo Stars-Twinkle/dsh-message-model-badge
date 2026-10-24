@@ -98,7 +98,23 @@ window.__ModuleLoader__.load({
 					const snapshot = useMemo(() => () => store.getSnapshot(), [store]);
 					const state = useSyncExternalStore(subscribe, snapshot, snapshot);
 
-					const actual = props.turn?.data?.get?.('model-badge');
+					/* Host projection face: `{ byTurn: { [turn]: { provider, model, reasoningEffort } } }`. */
+					const face = useMemo(() => {
+						try {
+							const binding = scope.sessions.binding(sessionId);
+							return binding?.session?.projections?.faceOf?.('message-model-badge') ?? null;
+						} catch {
+							return null;
+						}
+					}, [sessionId]);
+					const faceSubscribe = useMemo(
+						() => (listener) => (face === null ? () => {} : face.subscribe(listener)),
+						[face],
+					);
+					const faceSnapshot = useMemo(() => () => (face === null ? null : face.getSnapshot()), [face]);
+					const projection = useSyncExternalStore(faceSubscribe, faceSnapshot, faceSnapshot);
+
+					const actual = projection?.byTurn?.[props.turn?.turn];
 					const described = actual ? describe({ current: actual, groups: state.groups }) : describe(state);
 					if (described === null) return null;
 					const { modelName, effortName } = described;
