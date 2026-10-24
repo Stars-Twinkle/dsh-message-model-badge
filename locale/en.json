@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Message Model Badge",
+    "description": "Shows the model and reasoning level that produced each reply under the message."
+  }
+}
