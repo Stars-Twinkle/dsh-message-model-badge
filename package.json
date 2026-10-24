@@ -1,6 +1,6 @@
 {
   "name": "@stars-twinkle/dsh-message-model-badge",
-  "version": "1.2.0",
+  "version": "1.2.2",
   "description": "Shows the model and reasoning level that produced each reply under the turn in the DSH conversation.",
   "license": "MIT",
   "author": "Stars-Twinkle",

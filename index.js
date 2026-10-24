@@ -5,7 +5,14 @@
  * `provider / model / reasoningEffort` that turn's requests asked for. The
  * Client reads it through the projection face, so the badge never depends on
  * the composer's current selection and never touches Chat node assembly.
+ *
+ * The projection registry calls `stateSchema.parse` and `viewSchema.parse`
+ * before serving a value; these pass-through schemas satisfy that contract
+ * without importing the host schema package.
  */
+
+/** Minimal schema contract used by the projection registry. */
+const passthrough = { parse: (value) => value };
 
 /** Fold durable session events into a per-turn model table. */
 function fold(state, event) {
@@ -45,9 +52,11 @@ export function apply(ctx) {
 	const definition = {
 		key: 'message-model-badge',
 		stateVersion: 1,
+		stateSchema: passthrough,
 		init: () => ({ currentTurn: undefined, byTurn: {} }),
 		apply: fold,
 		wire: {
+			viewSchema: passthrough,
 			view: (state) => ({ byTurn: state.byTurn }),
 		},
 	};
