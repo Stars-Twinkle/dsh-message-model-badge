@@ -36,7 +36,7 @@ window.__ModuleLoader__.load({
 		}
 
 		function apply(ctx) {
-			ctx.inject(['slots', 'locale', 'sessions', 'remote', 'remote.session', 'modelDirectories', 'uiConversation'], (scope) => {
+			ctx.inject(['slots', 'locale', 'sessions', 'remote', 'remote.session', 'modelDirectories'], (scope) => {
 				scope.effect(
 					() =>
 						scope.locale.register(NS, {
@@ -52,37 +52,6 @@ window.__ModuleLoader__.load({
 					'message-model-badge: dictionaries',
 				);
 				const t = scope.locale.bind(NS);
-
-				/* Durable request headers record the exact provider/model/reasoningEffort each
-				 * step asked for; publishing the last one inside a turn shows what that turn
-				 * really used, independent of the composer's current selection. */
-				const selectionDefinition = {
-					kind: 'model-badge',
-					target: 'chat',
-					match: (event) => {
-						if (event.type !== 'request/header') return null;
-						const config = event.data?.header?.config;
-						if (config === null || config === undefined || typeof config.model !== 'string') return null;
-						return { id: String(event.seq), role: 'update' };
-					},
-					start: (_context, match) => {
-						const config = match.event.data.header.config;
-						return { provider: config.provider, model: config.model, reasoningEffort: config.reasoningEffort };
-					},
-					update: (context) => context.state,
-					buildLocationData: (context, locationScope) => {
-						if (locationScope !== 'turn') return null;
-						const location = context.start?.location ?? context.matches[0]?.location ?? { kind: 'unresolved' };
-						const turn = location.kind === 'turn' || location.kind === 'step' ? location.turn : undefined;
-						if (turn === undefined) return null;
-						return { kind: 'turn', turn, key: 'model-badge', value: { ...context.state } };
-					},
-					buildViewNode: () => null,
-				};
-				scope.effect(
-					() => scope.uiConversation.events.register(selectionDefinition),
-					'message-model-badge: turn model data',
-				);
 
 				scope.effect(() => {
 					for (const stale of Array.from(document.querySelectorAll(`style[data-plugin="${PKG}"]`))) stale.remove();
