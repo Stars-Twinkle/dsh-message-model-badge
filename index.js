@@ -20,7 +20,13 @@ function fold(state, event) {
 		const turn = event.data?.turn;
 		if (typeof turn !== 'number') return state;
 		if (state.currentTurn === turn) return state;
-		return { ...state, currentTurn: turn };
+		/* Unchanged request headers are not logged, so a new turn inherits the last
+		 * confirmed configuration; its own request/header (if any) overrides this.
+		 * Without the inheritance, every unchanged turn reads as "unknown". */
+		if (state.last === undefined || state.byTurn[turn] !== undefined) {
+			return { ...state, currentTurn: turn };
+		}
+		return { ...state, currentTurn: turn, byTurn: { ...state.byTurn, [turn]: state.last } };
 	}
 	if (event.type === 'request/header') {
 		const config = event.data?.header?.config;
@@ -33,15 +39,18 @@ function fold(state, event) {
 			reasoningEffort: config.reasoningEffort,
 		};
 		const previous = state.byTurn[turn];
-		if (
+		const recorded =
 			previous !== undefined &&
 			previous.provider === next.provider &&
 			previous.model === next.model &&
-			previous.reasoningEffort === next.reasoningEffort
-		) {
-			return state;
-		}
-		return { ...state, byTurn: { ...state.byTurn, [turn]: next } };
+			previous.reasoningEffort === next.reasoningEffort;
+		const remembered =
+			state.last !== undefined &&
+			state.last.provider === next.provider &&
+			state.last.model === next.model &&
+			state.last.reasoningEffort === next.reasoningEffort;
+		if (recorded && remembered) return state;
+		return { ...state, byTurn: { ...state.byTurn, [turn]: next }, last: next };
 	}
 	return state;
 }
@@ -53,7 +62,7 @@ export function apply(ctx) {
 		key: 'message-model-badge',
 		stateVersion: 1,
 		stateSchema: passthrough,
-		init: () => ({ currentTurn: undefined, byTurn: {} }),
+		init: () => ({ currentTurn: undefined, byTurn: {}, last: undefined }),
 		apply: fold,
 		wire: {
 			viewSchema: passthrough,
